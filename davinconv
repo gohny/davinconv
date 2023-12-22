@@ -1,0 +1,116 @@
+#! /bin/bash
+VERSION=0.1.0
+USERNAME=$(whoami)
+VIDDIR=/home/"$USERNAME"/Videos/davinconv
+WHEREAMI=$(pwd)
+
+if [ ! -d "$VIDDIR" ]; then
+    mkdir -p "$VIDDIR"
+    mkdir -p "$VIDDIR"/converted
+    mkdir -p "$VIDDIR"/exported
+fi
+
+Help() {
+    echo ""
+    echo "  ............................................................"
+    echo "  . Davinconv - video converter for Davinci Resolve on Linux ."
+    echo "  . v0.1.0    by Gohny                                       ."
+    echo "  ............................................................"
+    echo ""
+    echo "Usage: davinconv [-c|C|e|E|h|R]"
+    echo ""
+    echo "Options:"
+    echo "   {-c} [file]    - Convert video to the MJPEG codec that can be read by Davinci Resolve."
+    echo "   {-C}           - Convert all videos in current directory to the MJPEG codec that can be read by Davinci Resolve."
+    echo "   {-e} [file]    - Export converted video back to the H264 codec."
+    echo "   {-E}           - Export all converted videos stored in $VIDDIR/converted back to the H264 codec."
+    echo "   {-h}           - Display this message."
+    echo "   {-R}           - Remove all converted videos stored in $VIDDIR/converted."
+    echo ""
+    echo "All converted and exported videos are stored in: ~/Videos/davinconv"
+    echo ""
+    echo "It is recommended to watch https://www.youtube.com/watch?v=WLcW4UWPC5Y before using the script."
+    echo ""
+    echo "LICENSE: GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007"
+    echo "https://github.com/gohny/davinconv"
+}
+
+Convert() {
+    ffmpeg -i "$i" -vcodec mjpeg -q:v 2 -acodec pcm_s16be -q:a 0 -f mov "$VIDDIR"/converted/${i%.*}.mov
+}
+
+ConvertAll() {
+    for i in *.mp4 *.mkv; do
+        ffmpeg -i "$i" -vcodec mjpeg -q:v 2 -acodec pcm_s16be -q:a 0 -f mov "$VIDDIR"/converted/${i%.*}.mov
+    done
+}
+
+Export() {
+    ffmpeg -i "$VIDDIR"/converted/"$i" -c:v libx264 -preset ultrafast -crf 0 "$VIDDIR"/exported/${i%.*}.mp4
+}
+
+ExportAll() {
+    cd "$VIDDIR"/converted
+        for i in *.mov; do
+            ffmpeg -i "$i" -c:v libx264 -preset ultrafast -crf 0 "$VIDDIR"/exported/${i%.*}.mp4
+        done
+    cd "$WHEREAMI"
+}
+
+RemoveAll() {
+
+    while true; do
+
+        echo "You are about to remove ALL converted videos stored in $VIDDIR/converted."
+        read -p "Do you want to continue? (y/n) " yn
+
+        case $yn in
+            [yY] )
+                echo ""
+                echo "please wait..."
+                echo ""
+                sleep 1
+                rm -rf "$VIDDIR"/converted/*
+                break;;
+
+            [nN] )
+                echo "No changes have been made."
+                exit;;
+
+            * )
+                echo "Error: please input y or n";;
+        esac
+    done
+}
+
+while getopts ":c:Ce:EhR" OPTION; do
+    case $OPTION in
+        c)
+            i=${OPTARG}
+            Convert
+            exit;;
+        C)
+            ConvertAll
+            exit;;
+        e)
+            i=${OPTARG}
+            Export
+            exit;;
+        E)
+            ExportAll
+            exit;;
+        h)
+            Help
+            exit;;
+        R)
+            RemoveAll
+            exit;;
+        *)
+            echo "Error: Invalid option or argument not provided!"
+            echo "For help use: davinconv -h"
+            exit;;
+    esac
+done
+
+Help
+exit
